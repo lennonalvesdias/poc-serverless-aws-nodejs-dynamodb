@@ -2,8 +2,15 @@ name: Deploy master branch
 
 on:
   push:
+    paths-ignore:
+      - "**.md"
     branches:
       - master
+      - release
+  pull_request:
+    branches:
+      - master
+      - release
 
 jobs:
   build:
