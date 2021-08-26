@@ -1,8 +1,8 @@
 org: lennondias
-app: aws-node-express-dynamodb-api-project
-service: aws-node-express-dynamodb-api-project
+app: ux-minaspretas
+service: ux-minaspretas-backend
 
-frameworkVersion: '2'
+frameworkVersion: "2"
 
 custom:
   tableName: 'users-table-${self:provider.stage}'
@@ -29,15 +29,37 @@ provider:
     USERS_TABLE: ${self:custom.tableName}
 
 functions:
-  api:
-    handler: handler.handler
+  create:
+    handler: src/users/create.create
     events:
       - http:
-          path: /
-          method: ANY
+          path: users
+          method: post
+          cors: true
+
+  list:
+    handler: src/users/list.list
+    events:
       - http:
-          path: /{proxy+}
-          method: ANY
+          path: users
+          method: get
+          cors: true
+        
+  get:
+    handler: src/users/get.get
+    events:
+      - http:
+          path: users/{id}
+          method: get
+          cors: true
+        
+  update:
+    handler: src/users/update.update
+    events:
+      - http:
+          path: users/{id}
+          method: put
+          cors: true        
 
 resources:
   Resources:
@@ -45,10 +67,10 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
-          - AttributeName: userId
+          - AttributeName: id
             AttributeType: S
         KeySchema:
-          - AttributeName: userId
+          - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
