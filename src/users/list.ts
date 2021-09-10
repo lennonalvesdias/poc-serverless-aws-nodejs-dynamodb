@@ -1,33 +1,50 @@
 'use strict';
 
-import { DynamoDB } from 'aws-sdk';
+let AWS = require('aws-sdk');
+import { APIGatewayEvent, Context, APIGatewayProxyResult } from 'aws-lambda';
 
-const dynamoDb = new DynamoDB.DocumentClient();
-
-const params = {
-  TableName: process.env.USERS_TABLE,
-};
-
-module.exports.list = (event, context, callback) => {
-  // fetch all users from the database
-  // For production workloads you should design your tables and indexes so that your applications can use Query instead of Scan.
-  dynamoDb.scan(params, (error, result) => {
-    // handle potential errors
-    if (error) {
-      console.error(error);
-      callback(null, {
-        statusCode: error.statusCode || 501,
-        headers: { 'Content-Type': 'text/plain' },
-        body: "Couldn't fetch the users.",
-      });
-      return;
-    }
-
-    // create a response
-    const response = {
-      statusCode: 200,
-      body: JSON.stringify(result.Items),
-    };
-    callback(null, response);
+if (!AWS.config.region) {
+  AWS.config.update({
+    region: 'eu-west-1',
   });
-};
+}
+
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+export async function list(event: APIGatewayEvent, context: Context, callback): Promise<APIGatewayProxyResult> {
+  try {
+    const response = await listUsers();
+    return response;
+  } catch (error) {
+    console.error(error);
+    return {
+      statusCode: error.statusCode || 501,
+      headers: { 'Content-Type': 'text/plain' },
+      body: "Couldn't fetch the users.",
+    };
+  }
+}
+
+async function listUsers() {
+  const params = {
+    TableName: process.env.USERS_TABLE,
+  };
+
+  const { Items } = await dynamoDb.scan(params).promise();
+  console.log(Items);
+
+  if (Items) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify(Items),
+    };
+  } else {
+    return {
+      statusCode: 404,
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'Could not find users',
+    };
+  }
+}
+
+export { listUsers };

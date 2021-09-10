@@ -1,35 +1,52 @@
 'use strict';
 
-import { DynamoDB } from 'aws-sdk';
+let AWS = require('aws-sdk');
 
-const dynamoDb = new DynamoDB.DocumentClient();
+if (!AWS.config.region) {
+  AWS.config.update({
+    region: 'eu-west-1'
+  });
+}
 
-module.exports.get = (event, context, callback) => {
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+module.exports.get = async (event, context, callback) => {
+  try {
+    const { id } = event.pathParameters;
+    const response = await getUser(id);
+    callback(null, response);
+  } catch (error) {
+    console.error(error);
+    callback(null, {
+      statusCode: error.statusCode || 501,
+      headers: { 'Content-Type': 'text/plain' },
+      body: "Couldn't fetch the user.",
+    });
+  }
+};
+
+async function getUser(id: string) {
   const params = {
     TableName: process.env.USERS_TABLE,
     Key: {
-      id: event.pathParameters.id,
+      id: id,
     },
   };
 
-  // fetch user from the database
-  dynamoDb.get(params, (error, result) => {
-    // handle potential errors
-    if (error) {
-      console.error(error);
-      callback(null, {
-        statusCode: error.statusCode || 501,
-        headers: { 'Content-Type': 'text/plain' },
-        body: "Couldn't fetch the user.",
-      });
-      return;
-    }
+  const { Item } = await dynamoDb.get(params).promise();
 
-    // create a response
-    const response = {
+  if (Item) {
+    return {
       statusCode: 200,
-      body: JSON.stringify(result.Item),
+      body: JSON.stringify(Item),
     };
-    callback(null, response);
-  });
-};
+  } else {
+    return {
+      statusCode: 404,
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'Could not find user with provided "id"',
+    };
+  }
+}
+
+export { getUser };
